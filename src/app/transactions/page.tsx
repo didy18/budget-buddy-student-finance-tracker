@@ -35,6 +35,7 @@ import {
 import { categoryConfig } from '@/lib/categoryConfig';
 import { Category, Transaction, TransactionType } from '@/types';
 import { toast } from 'sonner';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currencyUtils';
 
 export default function TransactionsPage() {
   const { 
@@ -180,7 +181,7 @@ export default function TransactionsPage() {
     return { income, expenses, net: income - expenses };
   }, [filteredTransactions]);
 
-  const formatCurrency = (amount: number) => `${currency} ${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number) => formatCurrencyUtil(amount, currency);
 
   if (isLoading) {
     return (

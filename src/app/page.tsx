@@ -1,38 +1,42 @@
 "use client"
 
+import { useMemo, useEffect } from 'react';
 import { useFinance } from '@/context/FinanceContext';
 import { Navigation } from '@/components/Navigation';
-import { StatCard } from '@/components/StatCard';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import Link from 'next/link';
 import { 
-  Wallet, 
-  TrendingDown, 
   TrendingUp, 
-  Plus,
-  AlertTriangle,
-  Target,
+  TrendingDown, 
+  Wallet, 
+  PiggyBank, 
   Calendar,
+  AlertCircle,
+  ArrowRight,
+  Plus,
   Loader2
 } from 'lucide-react';
 import { categoryConfig } from '@/lib/categoryConfig';
-import Link from 'next/link';
-import { useMemo, useEffect } from 'react';
+import { Category } from '@/types';
 import { useSession } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currencyUtils';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const { 
-    transactions, 
-    getTotalIncome, 
-    getTotalExpenses, 
-    getExpensesByCategory,
-    getCurrentBudget,
+  
+  const {
+    transactions,
+    budgets,
     savingsGoals,
     reminders,
+    getTotalIncome,
+    getTotalExpenses,
+    getExpensesByCategory,
+    getCurrentBudget,
     isLoading,
     currency
   } = useFinance();
@@ -114,7 +118,7 @@ export default function DashboardPage() {
     );
   }
 
-  const formatCurrency = (amount: number) => `${currency} ${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number) => formatCurrencyUtil(amount, currency);
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-8">
@@ -141,7 +145,7 @@ export default function DashboardPage() {
         {currentBudget && isNearLimit && (
           <Card className="p-4 mb-6 border-orange-500 bg-orange-50 dark:bg-orange-950/20">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-500 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-500 mt-0.5" />
               <div className="flex-1">
                 <h3 className="font-semibold text-orange-900 dark:text-orange-100">
                   {isOverBudget ? 'Budget Exceeded!' : 'Approaching Budget Limit'}
@@ -157,27 +161,57 @@ export default function DashboardPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <StatCard
-            title="Total Balance"
-            value={formatCurrency(currentMonthStats.balance)}
-            icon={Wallet}
-            trend={{
-              value: "This month",
-              isPositive: currentMonthStats.balance >= 0
-            }}
-          />
-          <StatCard
-            title="Income"
-            value={formatCurrency(currentMonthStats.income)}
-            icon={TrendingUp}
-            className="border-green-200 dark:border-green-900"
-          />
-          <StatCard
-            title="Expenses"
-            value={formatCurrency(currentMonthStats.expenses)}
-            icon={TrendingDown}
-            className="border-red-200 dark:border-red-900"
-          />
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Wallet className="h-6 w-6 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
+                  <p className="text-2xl font-bold">{formatCurrency(currentMonthStats.balance)}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">This month</p>
+                <p className={`text-sm font-semibold ${currentMonthStats.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {currentMonthStats.balance >= 0 ? '+' : '-'}{formatCurrency(Math.abs(currentMonthStats.balance))}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="h-6 w-6 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Income</p>
+                  <p className="text-2xl font-bold">{formatCurrency(currentMonthStats.income)}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">This month</p>
+                <p className="text-sm font-semibold text-green-600">
+                  +{formatCurrency(currentMonthStats.income)}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <TrendingDown className="h-6 w-6 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Expenses</p>
+                  <p className="text-2xl font-bold">{formatCurrency(currentMonthStats.expenses)}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">This month</p>
+                <p className="text-sm font-semibold text-red-600">
+                  -{formatCurrency(currentMonthStats.expenses)}
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -219,7 +253,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <Target className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <PiggyBank className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground mb-4">No budget set</p>
                 <Link href="/budget">
                   <Button>Create Budget</Button>
@@ -242,8 +276,8 @@ export default function DashboardPage() {
                     : 0;
                   
                   return (
-                    <div key={category}>
-                      <div className="flex items-center justify-between mb-2">
+                    <div key={category} className="space-y-2">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Icon className={`h-4 w-4 ${config.color}`} />
                           <span className="text-sm font-medium">{config.label}</span>

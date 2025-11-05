@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFinance } from '@/context/FinanceContext';
 import { Navigation } from '@/components/Navigation';
 import { Card } from '@/components/ui/card';
@@ -25,30 +25,40 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Plus,
   Target,
   TrendingUp,
+  AlertTriangle,
+  Calendar,
+  Plus,
   Edit2,
   Trash2,
-  AlertCircle,
-  CheckCircle2,
+  CheckCircle,
+  Circle,
   Loader2
 } from 'lucide-react';
-import { Budget, BudgetPeriod, SavingsGoal } from '@/types';
+import { categoryConfig } from '@/lib/categoryConfig';
+import { Budget, SavingsGoal, BudgetPeriod, Category } from '@/types';
 import { toast } from 'sonner';
+import { useSession } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currencyUtils';
 
 export default function BudgetPage() {
+  const router = useRouter();
+  const { data: session, isPending: sessionPending } = useSession();
+  
   const {
     budgets,
+    savingsGoals,
     addBudget,
     updateBudget,
     deleteBudget,
-    getCurrentBudget,
-    savingsGoals,
     addSavingsGoal,
     updateSavingsGoal,
     deleteSavingsGoal,
+    getCurrentBudget,
     getTotalExpenses,
+    getExpensesByCategory,
     isLoading,
     currency
   } = useFinance();
@@ -253,7 +263,7 @@ export default function BudgetPage() {
     ? (currentExpenses / currentBudget.amount) * 100 
     : 0;
 
-  const formatCurrency = (amount: number) => `${currency} ${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number) => formatCurrencyUtil(amount, currency);
 
   if (isLoading) {
     return (
@@ -657,7 +667,7 @@ export default function BudgetPage() {
                           )}
                         </div>
                         {isCompleted && (
-                          <CheckCircle2 className="h-6 w-6 text-green-600" />
+                          <CheckCircle className="h-6 w-6 text-green-600" />
                         )}
                       </div>
 
