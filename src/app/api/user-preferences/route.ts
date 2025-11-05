@@ -4,7 +4,7 @@ import { userPreferences } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 const VALID_CURRENCIES = [
-  'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'INR',
+  'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'INR', 'NGN',
   'CHF', 'NZD', 'SGD', 'HKD', 'SEK', 'NOK', 'DKK', 'MXN',
   'BRL', 'ZAR', 'RUB', 'KRW'
 ];
