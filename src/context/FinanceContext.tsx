@@ -43,6 +43,7 @@ interface FinanceContextType {
   clearAllData: () => void;
   refetch: () => Promise<void>;
   updateCurrency: (currency: string) => Promise<void>;
+  checkBudgetAlerts: () => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -66,6 +67,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
   }, []);
+
+  // Check budget alerts
+  const checkBudgetAlerts = useCallback(async () => {
+    if (!session?.user?.id) return;
+
+    try {
+      const currentBudget = getCurrentBudget();
+      if (!currentBudget) return;
+
+      // Send alert notification
+      await fetch('/api/notifications/budget-alert', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          userId: session.user.id,
+          budgetId: currentBudget.id,
+        }),
+      });
+    } catch (error) {
+      console.error('Error checking budget alerts:', error);
+    }
+  }, [session, getAuthHeaders]);
 
   // Fetch user preferences and all data from API
   const fetchAllData = useCallback(async () => {
@@ -207,11 +230,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           createdAt: newTransaction.createdAt
         }]
       }));
+
+      // Check budget alerts after adding expense
+      if (transaction.type === 'expense') {
+        await checkBudgetAlerts();
+      }
     } catch (error) {
       console.error('Error adding transaction:', error);
       throw error;
     }
-  }, [session, getAuthHeaders]);
+  }, [session, getAuthHeaders, checkBudgetAlerts]);
 
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     if (!session?.user?.id) throw new Error('Not authenticated');
@@ -240,11 +268,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           } : t
         )
       }));
+
+      // Check budget alerts after updating expense
+      if (updated.type === 'expense') {
+        await checkBudgetAlerts();
+      }
     } catch (error) {
       console.error('Error updating transaction:', error);
       throw error;
     }
-  }, [session, getAuthHeaders]);
+  }, [session, getAuthHeaders, checkBudgetAlerts]);
 
   const deleteTransaction = useCallback(async (id: string) => {
     if (!session?.user?.id) throw new Error('Not authenticated');
@@ -639,6 +672,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     clearAllData,
     refetch: fetchAllData,
     updateCurrency,
+    checkBudgetAlerts,
   };
 
   return (
