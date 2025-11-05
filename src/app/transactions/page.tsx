@@ -42,7 +42,8 @@ export default function TransactionsPage() {
     addTransaction, 
     updateTransaction, 
     deleteTransaction,
-    isLoading
+    isLoading,
+    currency
   } = useFinance();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -178,6 +179,8 @@ export default function TransactionsPage() {
       .reduce((sum, t) => sum + t.amount, 0);
     return { income, expenses, net: income - expenses };
   }, [filteredTransactions]);
+
+  const formatCurrency = (amount: number) => `${currency} ${amount.toFixed(2)}`;
 
   if (isLoading) {
     return (
@@ -346,19 +349,19 @@ export default function TransactionsPage() {
           <Card className="p-4">
             <p className="text-sm text-muted-foreground">Total Income</p>
             <p className="text-2xl font-bold text-green-600 mt-1">
-              ${totals.income.toFixed(2)}
+              {formatCurrency(totals.income)}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-sm text-muted-foreground">Total Expenses</p>
             <p className="text-2xl font-bold text-red-600 mt-1">
-              ${totals.expenses.toFixed(2)}
+              {formatCurrency(totals.expenses)}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-sm text-muted-foreground">Net Balance</p>
             <p className={`text-2xl font-bold mt-1 ${totals.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ${totals.net.toFixed(2)}
+              {formatCurrency(totals.net)}
             </p>
           </Card>
         </div>
@@ -450,7 +453,7 @@ export default function TransactionsPage() {
                         <p className={`text-lg font-bold ${
                           transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                         }`}>
-                          {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                         </p>
                       </div>
                     </div>

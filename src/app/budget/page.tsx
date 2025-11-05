@@ -49,7 +49,8 @@ export default function BudgetPage() {
     updateSavingsGoal,
     deleteSavingsGoal,
     getTotalExpenses,
-    isLoading
+    isLoading,
+    currency
   } = useFinance();
 
   const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false);
@@ -252,6 +253,8 @@ export default function BudgetPage() {
     ? (currentExpenses / currentBudget.amount) * 100 
     : 0;
 
+  const formatCurrency = (amount: number) => `${currency} ${amount.toFixed(2)}`;
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background pb-20 md:pb-8">
@@ -312,7 +315,7 @@ export default function BudgetPage() {
                         {currentBudget.period.charAt(0).toUpperCase() + currentBudget.period.slice(1)} Budget
                       </span>
                       <span className="text-sm font-medium">
-                        ${currentExpenses.toFixed(2)} / ${currentBudget.amount.toFixed(2)}
+                        {formatCurrency(currentExpenses)} / {formatCurrency(currentBudget.amount)}
                       </span>
                     </div>
                     <Progress 
@@ -336,7 +339,7 @@ export default function BudgetPage() {
                     <div>
                       <p className="text-sm text-muted-foreground">Remaining</p>
                       <p className="text-2xl font-bold text-primary mt-1">
-                        ${Math.max(0, currentBudget.amount - currentExpenses).toFixed(2)}
+                        {formatCurrency(Math.max(0, currentBudget.amount - currentExpenses))}
                       </p>
                     </div>
                     <div>
@@ -474,7 +477,7 @@ export default function BudgetPage() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <p className="font-medium">
-                                ${budget.amount.toFixed(2)} {budget.period}
+                                {formatCurrency(budget.amount)} {budget.period}
                               </p>
                               {isCurrent && (
                                 <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
@@ -663,12 +666,12 @@ export default function BudgetPage() {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm text-muted-foreground">Progress</span>
                             <span className="text-sm font-medium">
-                              ${goal.currentAmount.toFixed(2)} / ${goal.targetAmount.toFixed(2)}
+                              {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
                             </span>
                           </div>
                           <Progress value={Math.min(progress, 100)} className="h-3" />
                           <p className="text-xs text-muted-foreground mt-1">
-                            {progress.toFixed(0)}% complete • ${(goal.targetAmount - goal.currentAmount).toFixed(2)} remaining
+                            {progress.toFixed(0)}% complete • {formatCurrency(goal.targetAmount - goal.currentAmount)} remaining
                           </p>
                         </div>
 
