@@ -56,7 +56,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { userId, currency } = body;
 
+    console.log('POST /api/user-preferences - Received body:', { userId, currency });
+
     if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      console.error('Invalid userId:', userId);
       return NextResponse.json(
         { 
           error: 'userId is required and must be a non-empty string',
@@ -69,11 +72,16 @@ export async function POST(request: NextRequest) {
     const sanitizedUserId = userId.trim();
     let sanitizedCurrency = currency ? currency.trim().toUpperCase() : 'USD';
 
+    console.log('Sanitized values:', { sanitizedUserId, sanitizedCurrency });
+
     if (currency && !VALID_CURRENCIES.includes(sanitizedCurrency)) {
+      console.error('Invalid currency:', sanitizedCurrency, 'Valid currencies:', VALID_CURRENCIES);
       return NextResponse.json(
         { 
           error: 'Invalid currency code. Must be a valid 3-letter currency code',
-          code: 'INVALID_CURRENCY'
+          code: 'INVALID_CURRENCY',
+          receivedCurrency: sanitizedCurrency,
+          validCurrencies: VALID_CURRENCIES
         },
         { status: 400 }
       );
@@ -87,6 +95,7 @@ export async function POST(request: NextRequest) {
     const timestamp = new Date().toISOString();
 
     if (existingPreferences.length > 0) {
+      console.log('Updating existing preferences for user:', sanitizedUserId);
       const updated = await db.update(userPreferences)
         .set({
           currency: sanitizedCurrency,
@@ -95,8 +104,10 @@ export async function POST(request: NextRequest) {
         .where(eq(userPreferences.userId, sanitizedUserId))
         .returning();
 
+      console.log('Successfully updated preferences:', updated[0]);
       return NextResponse.json(updated[0], { status: 200 });
     } else {
+      console.log('Creating new preferences for user:', sanitizedUserId);
       const created = await db.insert(userPreferences)
         .values({
           userId: sanitizedUserId,
@@ -106,6 +117,7 @@ export async function POST(request: NextRequest) {
         })
         .returning();
 
+      console.log('Successfully created preferences:', created[0]);
       return NextResponse.json(created[0], { status: 201 });
     }
   } catch (error) {
