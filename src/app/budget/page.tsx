@@ -28,6 +28,7 @@ import {
   Target,
   TrendingUp,
   AlertTriangle,
+  AlertCircle,
   Calendar,
   Plus,
   Edit2,
