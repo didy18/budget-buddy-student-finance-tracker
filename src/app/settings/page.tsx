@@ -46,6 +46,7 @@ const CURRENCY_OPTIONS = [
   { value: 'JPY', label: 'Japanese Yen (¥)', symbol: '¥', regions: ['Japan', 'JP'] },
   { value: 'CNY', label: 'Chinese Yuan (¥)', symbol: '¥', regions: ['China', 'CN'] },
   { value: 'INR', label: 'Indian Rupee (₹)', symbol: '₹', regions: ['India', 'IN'] },
+  { value: 'NGN', label: 'Nigerian Naira (₦)', symbol: '₦', regions: ['Nigeria', 'NG'] },
   { value: 'CHF', label: 'Swiss Franc (CHF)', symbol: 'CHF', regions: ['Switzerland', 'CH'] },
   { value: 'NZD', label: 'New Zealand Dollar (NZ$)', symbol: 'NZ$', regions: ['New Zealand', 'NZ'] },
   { value: 'SGD', label: 'Singapore Dollar (S$)', symbol: 'S$', regions: ['Singapore', 'SG'] },
