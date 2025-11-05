@@ -4,7 +4,9 @@ import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import ErrorReporter from "@/components/ErrorReporter";
 import Script from "next/script";
 import { FinanceProvider } from "@/context/FinanceContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { AppWrapper } from "@/components/AppWrapper";
 
 export const metadata: Metadata = {
   title: "Budget Buddy - Student Finance Tracker",
@@ -17,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <ErrorReporter />
         <Script
@@ -30,9 +32,13 @@ export default function RootLayout({
           data-debug="true"
           data-custom-data='{"appName": "YourApp", "version": "1.0.0", "greeting": "hi"}'
         />
-        <FinanceProvider>
-          {children}
-        </FinanceProvider>
+        <ThemeProvider>
+          <FinanceProvider>
+            <AppWrapper>
+              {children}
+            </AppWrapper>
+          </FinanceProvider>
+        </ThemeProvider>
         <Toaster richColors position="top-center" />
         <VisualEditsMessenger />
       </body>

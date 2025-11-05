@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Transaction, Budget, SavingsGoal, Reminder, FinanceData, Category, BudgetPeriod } from '@/types';
+import { useSession } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
 
 interface FinanceContextType {
   transactions: Transaction[];
@@ -9,6 +11,7 @@ interface FinanceContextType {
   savingsGoals: SavingsGoal[];
   reminders: Reminder[];
   isLoading: boolean;
+  currency: string;
   
   // Transaction methods
   addTransaction: (transaction: Omit<Transaction, 'id' | 'createdAt'>) => Promise<void>;
@@ -39,28 +42,66 @@ interface FinanceContextType {
   importData: (jsonString: string) => boolean;
   clearAllData: () => void;
   refetch: () => Promise<void>;
+  updateCurrency: (currency: string) => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { data: session, isPending: sessionPending } = useSession();
+  const router = useRouter();
   const [data, setData] = useState<FinanceData>({
     transactions: [],
     budgets: [],
     savingsGoals: [],
     reminders: [],
   });
+  const [currency, setCurrency] = useState('USD');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch all data from API
+  const getAuthHeaders = useCallback(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('bearer_token') : null;
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  }, []);
+
+  // Fetch user preferences and all data from API
   const fetchAllData = useCallback(async () => {
+    if (sessionPending || !session?.user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
+      const userId = session.user.id;
+
+      // Fetch user preferences first
+      const prefsRes = await fetch(`/api/user-preferences?userId=${userId}`, {
+        headers: getAuthHeaders()
+      });
+      
+      if (prefsRes.ok) {
+        const prefs = await prefsRes.json();
+        setCurrency(prefs.currency || 'USD');
+      } else {
+        // Create default preferences if they don't exist
+        await fetch('/api/user-preferences', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ userId, currency: 'USD' })
+        });
+        setCurrency('USD');
+      }
+
+      // Fetch all finance data
       const [transactionsRes, budgetsRes, goalsRes, remindersRes] = await Promise.all([
-        fetch('/api/transactions?limit=1000'),
-        fetch('/api/budgets?limit=100'),
-        fetch('/api/savings-goals?limit=100'),
-        fetch('/api/reminders?limit=1000')
+        fetch(`/api/transactions?userId=${userId}&limit=1000`, { headers: getAuthHeaders() }),
+        fetch(`/api/budgets?userId=${userId}&limit=100`, { headers: getAuthHeaders() }),
+        fetch(`/api/savings-goals?userId=${userId}&limit=100`, { headers: getAuthHeaders() }),
+        fetch(`/api/reminders?userId=${userId}&limit=1000`, { headers: getAuthHeaders() })
       ]);
 
       const [transactions, budgets, savingsGoals, reminders] = await Promise.all([
@@ -111,20 +152,44 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [session, sessionPending, getAuthHeaders]);
 
-  // Load data on mount
+  // Load data on mount and when session changes
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
 
+  const updateCurrency = useCallback(async (newCurrency: string) => {
+    if (!session?.user?.id) return;
+
+    try {
+      const res = await fetch('/api/user-preferences', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ 
+          userId: session.user.id, 
+          currency: newCurrency 
+        })
+      });
+
+      if (res.ok) {
+        setCurrency(newCurrency);
+      }
+    } catch (error) {
+      console.error('Error updating currency:', error);
+      throw error;
+    }
+  }, [session, getAuthHeaders]);
+
   // Transaction methods
   const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
       const res = await fetch('/api/transactions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(transaction)
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...transaction, userId: session.user.id })
       });
 
       if (!res.ok) throw new Error('Failed to add transaction');
@@ -146,14 +211,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error adding transaction:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
       const res = await fetch(`/api/transactions?id=${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...updates, userId: session.user.id })
       });
 
       if (!res.ok) throw new Error('Failed to update transaction');
@@ -177,12 +244,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error updating transaction:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const deleteTransaction = useCallback(async (id: string) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
-      const res = await fetch(`/api/transactions?id=${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/transactions?id=${id}&userId=${session.user.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
 
       if (!res.ok) throw new Error('Failed to delete transaction');
@@ -195,15 +265,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error deleting transaction:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   // Budget methods
   const addBudget = useCallback(async (budget: Omit<Budget, 'id'>) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
       const res = await fetch('/api/budgets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(budget)
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...budget, userId: session.user.id })
       });
 
       if (!res.ok) throw new Error('Failed to add budget');
@@ -224,14 +296,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error adding budget:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const updateBudget = useCallback(async (id: string, updates: Partial<Budget>) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
       const res = await fetch(`/api/budgets?id=${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...updates, userId: session.user.id })
       });
 
       if (!res.ok) throw new Error('Failed to update budget');
@@ -254,12 +328,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error updating budget:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const deleteBudget = useCallback(async (id: string) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
-      const res = await fetch(`/api/budgets?id=${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/budgets?id=${id}&userId=${session.user.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
 
       if (!res.ok) throw new Error('Failed to delete budget');
@@ -272,7 +349,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error deleting budget:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const getCurrentBudget = useCallback((): Budget | null => {
     const now = new Date();
@@ -297,11 +374,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Savings goal methods
   const addSavingsGoal = useCallback(async (goal: Omit<SavingsGoal, 'id' | 'createdAt'>) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
       const res = await fetch('/api/savings-goals', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(goal)
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...goal, userId: session.user.id })
       });
 
       if (!res.ok) throw new Error('Failed to add savings goal');
@@ -323,14 +402,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error adding savings goal:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const updateSavingsGoal = useCallback(async (id: string, updates: Partial<SavingsGoal>) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
       const res = await fetch(`/api/savings-goals?id=${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...updates, userId: session.user.id })
       });
 
       if (!res.ok) throw new Error('Failed to update savings goal');
@@ -354,12 +435,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error updating savings goal:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const deleteSavingsGoal = useCallback(async (id: string) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
-      const res = await fetch(`/api/savings-goals?id=${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/savings-goals?id=${id}&userId=${session.user.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
 
       if (!res.ok) throw new Error('Failed to delete savings goal');
@@ -372,15 +456,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error deleting savings goal:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   // Reminder methods
   const addReminder = useCallback(async (reminder: Omit<Reminder, 'id'>) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
       const res = await fetch('/api/reminders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reminder)
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...reminder, userId: session.user.id })
       });
 
       if (!res.ok) throw new Error('Failed to add reminder');
@@ -401,14 +487,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error adding reminder:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const updateReminder = useCallback(async (id: string, updates: Partial<Reminder>) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
       const res = await fetch(`/api/reminders?id=${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...updates, userId: session.user.id })
       });
 
       if (!res.ok) throw new Error('Failed to update reminder');
@@ -431,12 +519,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error updating reminder:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   const deleteReminder = useCallback(async (id: string) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
     try {
-      const res = await fetch(`/api/reminders?id=${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/reminders?id=${id}&userId=${session.user.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
 
       if (!res.ok) throw new Error('Failed to delete reminder');
@@ -449,7 +540,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error deleting reminder:', error);
       throw error;
     }
-  }, []);
+  }, [session, getAuthHeaders]);
 
   // Utility methods
   const getTotalIncome = useCallback((startDate?: Date, endDate?: Date): number => {
@@ -508,7 +599,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const importData = useCallback((jsonString: string): boolean => {
     try {
       const imported = JSON.parse(jsonString);
-      // Note: Import functionality would need backend support to bulk insert
       console.warn('Import functionality requires backend implementation');
       return false;
     } catch (error) {
@@ -518,7 +608,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const clearAllData = useCallback(() => {
-    // Note: This would need careful backend implementation
     console.warn('Clear all data functionality requires backend implementation');
   }, []);
 
@@ -528,6 +617,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     savingsGoals: data.savingsGoals,
     reminders: data.reminders,
     isLoading,
+    currency,
     addTransaction,
     updateTransaction,
     deleteTransaction,
@@ -548,6 +638,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     importData,
     clearAllData,
     refetch: fetchAllData,
+    updateCurrency,
   };
 
   return (

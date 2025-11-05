@@ -18,9 +18,13 @@ import {
 } from 'lucide-react';
 import { categoryConfig } from '@/lib/categoryConfig';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
+import { useSession } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { data: session, isPending: sessionPending } = useSession();
   const { 
     transactions, 
     getTotalIncome, 
@@ -29,8 +33,16 @@ export default function DashboardPage() {
     getCurrentBudget,
     savingsGoals,
     reminders,
-    isLoading
+    isLoading,
+    currency
   } = useFinance();
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!sessionPending && !session?.user) {
+      router.push("/login");
+    }
+  }, [session, sessionPending, router]);
 
   // Calculate current month stats
   const currentMonthStats = useMemo(() => {
@@ -85,7 +97,8 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [expensesByCategory]);
 
-  if (isLoading) {
+  // Show loading while checking auth or fetching data
+  if (sessionPending || isLoading || !session?.user) {
     return (
       <div className="min-h-screen bg-background pb-20 md:pb-8">
         <Navigation />
@@ -100,6 +113,8 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const formatCurrency = (amount: number) => `${currency} ${amount.toFixed(2)}`;
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-8">
@@ -132,7 +147,7 @@ export default function DashboardPage() {
                   {isOverBudget ? 'Budget Exceeded!' : 'Approaching Budget Limit'}
                 </h3>
                 <p className="text-sm text-orange-800 dark:text-orange-200 mt-1">
-                  You've spent ${currentMonthStats.expenses.toFixed(2)} of your ${currentBudget.amount.toFixed(2)} {currentBudget.period} budget 
+                  You've spent {formatCurrency(currentMonthStats.expenses)} of your {formatCurrency(currentBudget.amount)} {currentBudget.period} budget 
                   ({budgetProgress.toFixed(0)}%)
                 </p>
               </div>
@@ -144,7 +159,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <StatCard
             title="Total Balance"
-            value={`$${currentMonthStats.balance.toFixed(2)}`}
+            value={formatCurrency(currentMonthStats.balance)}
             icon={Wallet}
             trend={{
               value: "This month",
@@ -153,13 +168,13 @@ export default function DashboardPage() {
           />
           <StatCard
             title="Income"
-            value={`$${currentMonthStats.income.toFixed(2)}`}
+            value={formatCurrency(currentMonthStats.income)}
             icon={TrendingUp}
             className="border-green-200 dark:border-green-900"
           />
           <StatCard
             title="Expenses"
-            value={`$${currentMonthStats.expenses.toFixed(2)}`}
+            value={formatCurrency(currentMonthStats.expenses)}
             icon={TrendingDown}
             className="border-red-200 dark:border-red-900"
           />
@@ -183,7 +198,7 @@ export default function DashboardPage() {
                       {currentBudget.period.charAt(0).toUpperCase() + currentBudget.period.slice(1)} Budget
                     </span>
                     <span className="text-sm font-medium">
-                      ${currentMonthStats.expenses.toFixed(2)} / ${currentBudget.amount.toFixed(2)}
+                      {formatCurrency(currentMonthStats.expenses)} / {formatCurrency(currentBudget.amount)}
                     </span>
                   </div>
                   <Progress 
@@ -198,7 +213,7 @@ export default function DashboardPage() {
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground mb-1">Remaining</p>
                   <p className="text-2xl font-bold text-primary">
-                    ${Math.max(0, currentBudget.amount - currentMonthStats.expenses).toFixed(2)}
+                    {formatCurrency(Math.max(0, currentBudget.amount - currentMonthStats.expenses))}
                   </p>
                 </div>
               </div>
@@ -233,7 +248,7 @@ export default function DashboardPage() {
                           <Icon className={`h-4 w-4 ${config.color}`} />
                           <span className="text-sm font-medium">{config.label}</span>
                         </div>
-                        <span className="text-sm font-semibold">${amount.toFixed(2)}</span>
+                        <span className="text-sm font-semibold">{formatCurrency(amount)}</span>
                       </div>
                       <Progress value={percentage} className="h-2" />
                     </div>
@@ -280,7 +295,7 @@ export default function DashboardPage() {
                       <span className={`text-sm font-semibold ${
                         transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                       </span>
                     </div>
                   );
@@ -317,7 +332,7 @@ export default function DashboardPage() {
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">{goal.name}</span>
                             <span className="text-xs text-muted-foreground">
-                              ${goal.currentAmount} / ${goal.targetAmount}
+                              {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
                             </span>
                           </div>
                           <Progress value={progress} className="h-2" />

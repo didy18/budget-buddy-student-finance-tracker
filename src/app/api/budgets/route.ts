@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { budgets } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
+
+    // Validate userId is provided
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required', code: 'MISSING_USER_ID' },
+        { status: 400 }
+      );
+    }
 
     // Single budget by ID
     if (id) {
@@ -20,7 +29,10 @@ export async function GET(request: NextRequest) {
       const budget = await db
         .select()
         .from(budgets)
-        .where(eq(budgets.id, parseInt(id)))
+        .where(and(
+          eq(budgets.id, parseInt(id)),
+          eq(budgets.userId, userId)
+        ))
         .limit(1);
 
       if (budget.length === 0) {
@@ -38,7 +50,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const period = searchParams.get('period');
 
-    let query = db.select().from(budgets).orderBy(desc(budgets.startDate));
+    const conditions = [eq(budgets.userId, userId)];
 
     // Filter by period if provided
     if (period) {
@@ -48,10 +60,15 @@ export async function GET(request: NextRequest) {
           { status: 400 }
         );
       }
-      query = query.where(eq(budgets.period, period));
+      conditions.push(eq(budgets.period, period));
     }
 
-    const results = await query.limit(limit).offset(offset);
+    const results = await db.select()
+      .from(budgets)
+      .where(and(...conditions))
+      .orderBy(desc(budgets.startDate))
+      .limit(limit)
+      .offset(offset);
 
     return NextResponse.json(results, { status: 200 });
   } catch (error: any) {
@@ -66,7 +83,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { period, amount, startDate, categoryLimits, alertThreshold } = body;
+    const { userId, period, amount, startDate, categoryLimits, alertThreshold } = body;
+
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required', code: 'MISSING_USER_ID' },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!period) {
@@ -142,6 +167,7 @@ export async function POST(request: NextRequest) {
     const newBudget = await db
       .insert(budgets)
       .values({
+        userId,
         period,
         amount,
         startDate,
@@ -172,11 +198,25 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check if budget exists
+    const body = await request.json();
+    const { userId, period, amount, startDate, categoryLimits, alertThreshold } = body;
+
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required', code: 'MISSING_USER_ID' },
+        { status: 400 }
+      );
+    }
+
+    // Check if budget exists and belongs to user
     const existing = await db
       .select()
       .from(budgets)
-      .where(eq(budgets.id, parseInt(id)))
+      .where(and(
+        eq(budgets.id, parseInt(id)),
+        eq(budgets.userId, userId)
+      ))
       .limit(1);
 
     if (existing.length === 0) {
@@ -185,9 +225,6 @@ export async function PUT(request: NextRequest) {
         { status: 404 }
       );
     }
-
-    const body = await request.json();
-    const { period, amount, startDate, categoryLimits, alertThreshold } = body;
 
     // Validate period if provided
     if (period !== undefined && period !== 'weekly' && period !== 'monthly') {
@@ -247,7 +284,10 @@ export async function PUT(request: NextRequest) {
     const updated = await db
       .update(budgets)
       .set(updates)
-      .where(eq(budgets.id, parseInt(id)))
+      .where(and(
+        eq(budgets.id, parseInt(id)),
+        eq(budgets.userId, userId)
+      ))
       .returning();
 
     return NextResponse.json(updated[0], { status: 200 });
@@ -264,6 +304,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
 
     if (!id || isNaN(parseInt(id))) {
       return NextResponse.json(
@@ -272,11 +313,22 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if budget exists
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required', code: 'MISSING_USER_ID' },
+        { status: 400 }
+      );
+    }
+
+    // Check if budget exists and belongs to user
     const existing = await db
       .select()
       .from(budgets)
-      .where(eq(budgets.id, parseInt(id)))
+      .where(and(
+        eq(budgets.id, parseInt(id)),
+        eq(budgets.userId, userId)
+      ))
       .limit(1);
 
     if (existing.length === 0) {
@@ -289,7 +341,10 @@ export async function DELETE(request: NextRequest) {
     // Delete budget
     const deleted = await db
       .delete(budgets)
-      .where(eq(budgets.id, parseInt(id)))
+      .where(and(
+        eq(budgets.id, parseInt(id)),
+        eq(budgets.userId, userId)
+      ))
       .returning();
 
     return NextResponse.json(

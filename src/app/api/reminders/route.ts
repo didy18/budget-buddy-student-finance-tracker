@@ -9,6 +9,15 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
+
+    // Validate userId is provided
+    if (!userId) {
+      return NextResponse.json({ 
+        error: "User ID is required",
+        code: "MISSING_USER_ID" 
+      }, { status: 400 });
+    }
 
     // Single reminder by ID
     if (id) {
@@ -21,7 +30,10 @@ export async function GET(request: NextRequest) {
 
       const reminder = await db.select()
         .from(reminders)
-        .where(eq(reminders.id, parseInt(id)))
+        .where(and(
+          eq(reminders.id, parseInt(id)),
+          eq(reminders.userId, userId)
+        ))
         .limit(1);
 
       if (reminder.length === 0) {
@@ -38,8 +50,7 @@ export async function GET(request: NextRequest) {
     const isCompletedParam = searchParams.get('isCompleted');
     const category = searchParams.get('category');
 
-    let query = db.select().from(reminders);
-    const conditions = [];
+    const conditions = [eq(reminders.userId, userId)];
 
     // Search filter
     if (search) {
@@ -68,13 +79,10 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(reminders.category, category));
     }
 
-    // Apply filters
-    if (conditions.length > 0) {
-      query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
-    }
-
     // Order by dueDate ascending and apply pagination
-    const results = await query
+    const results = await db.select()
+      .from(reminders)
+      .where(and(...conditions))
       .orderBy(asc(reminders.dueDate))
       .limit(limit)
       .offset(offset);
@@ -91,7 +99,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, dueDate, isCompleted, category } = body;
+    const { userId, title, description, dueDate, isCompleted, category } = body;
+
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json({ 
+        error: "User ID is required",
+        code: "MISSING_USER_ID" 
+      }, { status: 400 });
+    }
 
     // Validate required fields
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -136,6 +152,7 @@ export async function POST(request: NextRequest) {
     // Prepare insert data
     const newReminder = await db.insert(reminders)
       .values({
+        userId,
         title: title.trim(),
         description: description ? description.trim() : null,
         dueDate: dueDate,
@@ -165,18 +182,30 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if reminder exists
+    const body = await request.json();
+    const { userId, title, description, dueDate, isCompleted, category } = body;
+
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json({ 
+        error: "User ID is required",
+        code: "MISSING_USER_ID" 
+      }, { status: 400 });
+    }
+
+    // Check if reminder exists and belongs to user
     const existing = await db.select()
       .from(reminders)
-      .where(eq(reminders.id, parseInt(id)))
+      .where(and(
+        eq(reminders.id, parseInt(id)),
+        eq(reminders.userId, userId)
+      ))
       .limit(1);
 
     if (existing.length === 0) {
       return NextResponse.json({ error: 'Reminder not found' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { title, description, dueDate, isCompleted, category } = body;
     const updates: any = {};
 
     // Validate and prepare title
@@ -238,7 +267,10 @@ export async function PUT(request: NextRequest) {
     // Perform update
     const updated = await db.update(reminders)
       .set(updates)
-      .where(eq(reminders.id, parseInt(id)))
+      .where(and(
+        eq(reminders.id, parseInt(id)),
+        eq(reminders.userId, userId)
+      ))
       .returning();
 
     return NextResponse.json(updated[0], { status: 200 });
@@ -254,6 +286,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
 
     if (!id || isNaN(parseInt(id))) {
       return NextResponse.json({ 
@@ -262,10 +295,21 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if reminder exists
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json({ 
+        error: "User ID is required",
+        code: "MISSING_USER_ID" 
+      }, { status: 400 });
+    }
+
+    // Check if reminder exists and belongs to user
     const existing = await db.select()
       .from(reminders)
-      .where(eq(reminders.id, parseInt(id)))
+      .where(and(
+        eq(reminders.id, parseInt(id)),
+        eq(reminders.userId, userId)
+      ))
       .limit(1);
 
     if (existing.length === 0) {
@@ -274,7 +318,10 @@ export async function DELETE(request: NextRequest) {
 
     // Delete the reminder
     const deleted = await db.delete(reminders)
-      .where(eq(reminders.id, parseInt(id)))
+      .where(and(
+        eq(reminders.id, parseInt(id)),
+        eq(reminders.userId, userId)
+      ))
       .returning();
 
     return NextResponse.json({ 

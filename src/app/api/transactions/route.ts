@@ -27,6 +27,15 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
+
+    // Validate userId is provided
+    if (!userId) {
+      return NextResponse.json({
+        error: 'User ID is required',
+        code: 'MISSING_USER_ID'
+      }, { status: 400 });
+    }
 
     // Single transaction by ID
     if (id) {
@@ -39,7 +48,10 @@ export async function GET(request: NextRequest) {
 
       const transaction = await db.select()
         .from(transactions)
-        .where(eq(transactions.id, parseInt(id)))
+        .where(and(
+          eq(transactions.id, parseInt(id)),
+          eq(transactions.userId, userId)
+        ))
         .limit(1);
 
       if (transaction.length === 0) {
@@ -61,7 +73,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
 
     // Build query conditions
-    const conditions = [];
+    const conditions = [eq(transactions.userId, userId)];
 
     if (search) {
       conditions.push(like(transactions.description, `%${search}%`));
@@ -107,13 +119,9 @@ export async function GET(request: NextRequest) {
       conditions.push(lte(transactions.date, endDate));
     }
 
-    let query = db.select().from(transactions);
-
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-
-    const results = await query
+    const results = await db.select()
+      .from(transactions)
+      .where(and(...conditions))
       .orderBy(desc(transactions.date))
       .limit(limit)
       .offset(offset);
@@ -130,7 +138,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, amount, category, description, date } = body;
+    const { userId, type, amount, category, description, date } = body;
+
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json({
+        error: 'User ID is required',
+        code: 'MISSING_USER_ID'
+      }, { status: 400 });
+    }
 
     // Validate required fields
     if (!type) {
@@ -206,6 +222,7 @@ export async function POST(request: NextRequest) {
 
     const newTransaction = await db.insert(transactions)
       .values({
+        userId,
         type,
         amount,
         category,
@@ -237,12 +254,23 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, amount, category, description, date } = body;
+    const { userId, type, amount, category, description, date } = body;
 
-    // Check if transaction exists
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json({
+        error: 'User ID is required',
+        code: 'MISSING_USER_ID'
+      }, { status: 400 });
+    }
+
+    // Check if transaction exists and belongs to user
     const existing = await db.select()
       .from(transactions)
-      .where(eq(transactions.id, parseInt(id)))
+      .where(and(
+        eq(transactions.id, parseInt(id)),
+        eq(transactions.userId, userId)
+      ))
       .limit(1);
 
     if (existing.length === 0) {
@@ -300,7 +328,10 @@ export async function PUT(request: NextRequest) {
 
     const updated = await db.update(transactions)
       .set(updates)
-      .where(eq(transactions.id, parseInt(id)))
+      .where(and(
+        eq(transactions.id, parseInt(id)),
+        eq(transactions.userId, userId)
+      ))
       .returning();
 
     return NextResponse.json(updated[0], { status: 200 });
@@ -316,6 +347,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
 
     if (!id || isNaN(parseInt(id)) || parseInt(id) <= 0) {
       return NextResponse.json({
@@ -324,10 +356,21 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if transaction exists
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json({
+        error: 'User ID is required',
+        code: 'MISSING_USER_ID'
+      }, { status: 400 });
+    }
+
+    // Check if transaction exists and belongs to user
     const existing = await db.select()
       .from(transactions)
-      .where(eq(transactions.id, parseInt(id)))
+      .where(and(
+        eq(transactions.id, parseInt(id)),
+        eq(transactions.userId, userId)
+      ))
       .limit(1);
 
     if (existing.length === 0) {
@@ -337,7 +380,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     const deleted = await db.delete(transactions)
-      .where(eq(transactions.id, parseInt(id)))
+      .where(and(
+        eq(transactions.id, parseInt(id)),
+        eq(transactions.userId, userId)
+      ))
       .returning();
 
     return NextResponse.json({

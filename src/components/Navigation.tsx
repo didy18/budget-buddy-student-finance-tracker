@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Receipt, Target, Bell, Settings, LogOut, Moon, Sun, User } from 'lucide-react';
+import { Home, Receipt, Target, Bell, Settings, LogOut, Moon, Sun, User, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { authClient, useSession } from '@/lib/auth-client';
 import { useTheme } from '@/components/ThemeProvider';
@@ -16,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Wallet } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },

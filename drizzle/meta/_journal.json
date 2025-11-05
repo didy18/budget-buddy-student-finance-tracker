@@ -15,6 +15,20 @@
       "when": 1762244344837,
       "tag": "0001_fat_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1762336496547,
+      "tag": "0002_large_squirrel_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1762336536928,
+      "tag": "0003_grey_true_believers",
+      "breakpoints": true
     }
   ]
 }

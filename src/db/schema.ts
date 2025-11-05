@@ -2,6 +2,7 @@ import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core';
 
 export const transactions = sqliteTable('transactions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
   type: text('type').notNull(),
   amount: real('amount').notNull(),
   category: text('category').notNull(),
@@ -12,6 +13,7 @@ export const transactions = sqliteTable('transactions', {
 
 export const budgets = sqliteTable('budgets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
   period: text('period').notNull(),
   amount: real('amount').notNull(),
   startDate: text('start_date').notNull(),
@@ -21,6 +23,7 @@ export const budgets = sqliteTable('budgets', {
 
 export const savingsGoals = sqliteTable('savings_goals', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   targetAmount: real('target_amount').notNull(),
   currentAmount: real('current_amount').notNull(),
@@ -31,6 +34,7 @@ export const savingsGoals = sqliteTable('savings_goals', {
 
 export const reminders = sqliteTable('reminders', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
   dueDate: text('due_date').notNull(),
@@ -102,4 +106,11 @@ export const verification = sqliteTable("verification", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),
+});
+
+export const userPreferences = sqliteTable('user_preferences', {
+  userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
+  currency: text('currency').notNull().default('USD'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 });

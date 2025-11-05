@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { savingsGoals } from '@/db/schema';
-import { eq, like, or, desc } from 'drizzle-orm';
+import { eq, like, or, desc, and } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
+
+    // Validate userId is provided
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required', code: 'MISSING_USER_ID' },
+        { status: 400 }
+      );
+    }
 
     // Single savings goal by ID
     if (id) {
@@ -20,7 +29,10 @@ export async function GET(request: NextRequest) {
       const savingsGoal = await db
         .select()
         .from(savingsGoals)
-        .where(eq(savingsGoals.id, parseInt(id)))
+        .where(and(
+          eq(savingsGoals.id, parseInt(id)),
+          eq(savingsGoals.userId, userId)
+        ))
         .limit(1);
 
       if (savingsGoal.length === 0) {
@@ -38,10 +50,10 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
 
-    let query = db.select().from(savingsGoals);
+    const conditions = [eq(savingsGoals.userId, userId)];
 
     if (search) {
-      query = query.where(
+      conditions.push(
         or(
           like(savingsGoals.name, `%${search}%`),
           like(savingsGoals.description, `%${search}%`)
@@ -49,7 +61,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const results = await query
+    const results = await db.select()
+      .from(savingsGoals)
+      .where(and(...conditions))
       .orderBy(desc(savingsGoals.createdAt))
       .limit(limit)
       .offset(offset);
@@ -67,7 +81,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, targetAmount, currentAmount, deadline, description } = body;
+    const { userId, name, targetAmount, currentAmount, deadline, description } = body;
+
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required', code: 'MISSING_USER_ID' },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!name || name.trim() === '') {
@@ -128,6 +150,7 @@ export async function POST(request: NextRequest) {
     const newSavingsGoal = await db
       .insert(savingsGoals)
       .values({
+        userId,
         name: name.trim(),
         targetAmount,
         currentAmount: validatedCurrentAmount,
@@ -160,11 +183,25 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check if savings goal exists
+    const body = await request.json();
+    const { userId, name, targetAmount, currentAmount, deadline, description } = body;
+
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required', code: 'MISSING_USER_ID' },
+        { status: 400 }
+      );
+    }
+
+    // Check if savings goal exists and belongs to user
     const existingSavingsGoal = await db
       .select()
       .from(savingsGoals)
-      .where(eq(savingsGoals.id, parseInt(id)))
+      .where(and(
+        eq(savingsGoals.id, parseInt(id)),
+        eq(savingsGoals.userId, userId)
+      ))
       .limit(1);
 
     if (existingSavingsGoal.length === 0) {
@@ -173,9 +210,6 @@ export async function PUT(request: NextRequest) {
         { status: 404 }
       );
     }
-
-    const body = await request.json();
-    const { name, targetAmount, currentAmount, deadline, description } = body;
 
     // Build update object
     const updates: any = {};
@@ -250,7 +284,10 @@ export async function PUT(request: NextRequest) {
     const updatedSavingsGoal = await db
       .update(savingsGoals)
       .set(updates)
-      .where(eq(savingsGoals.id, parseInt(id)))
+      .where(and(
+        eq(savingsGoals.id, parseInt(id)),
+        eq(savingsGoals.userId, userId)
+      ))
       .returning();
 
     return NextResponse.json(updatedSavingsGoal[0], { status: 200 });
@@ -267,6 +304,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
 
     // Validate ID
     if (!id || isNaN(parseInt(id)) || parseInt(id) <= 0) {
@@ -276,11 +314,22 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if savings goal exists
+    // Validate userId
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required', code: 'MISSING_USER_ID' },
+        { status: 400 }
+      );
+    }
+
+    // Check if savings goal exists and belongs to user
     const existingSavingsGoal = await db
       .select()
       .from(savingsGoals)
-      .where(eq(savingsGoals.id, parseInt(id)))
+      .where(and(
+        eq(savingsGoals.id, parseInt(id)),
+        eq(savingsGoals.userId, userId)
+      ))
       .limit(1);
 
     if (existingSavingsGoal.length === 0) {
@@ -293,7 +342,10 @@ export async function DELETE(request: NextRequest) {
     // Delete savings goal
     const deleted = await db
       .delete(savingsGoals)
-      .where(eq(savingsGoals.id, parseInt(id)))
+      .where(and(
+        eq(savingsGoals.id, parseInt(id)),
+        eq(savingsGoals.userId, userId)
+      ))
       .returning();
 
     return NextResponse.json(

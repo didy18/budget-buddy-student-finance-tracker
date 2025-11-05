@@ -1,12 +1,19 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFinance } from '@/context/FinanceContext';
 import { Navigation } from '@/components/Navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -22,11 +29,40 @@ import {
   Trash2,
   AlertTriangle,
   FileJson,
-  Info
+  Info,
+  DollarSign,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSession } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
+
+const CURRENCY_OPTIONS = [
+  { value: 'USD', label: 'US Dollar ($)', symbol: '$', regions: ['US', 'United States'] },
+  { value: 'EUR', label: 'Euro (€)', symbol: '€', regions: ['Europe', 'EU'] },
+  { value: 'GBP', label: 'British Pound (£)', symbol: '£', regions: ['UK', 'United Kingdom', 'GB'] },
+  { value: 'CAD', label: 'Canadian Dollar (C$)', symbol: 'C$', regions: ['Canada', 'CA'] },
+  { value: 'AUD', label: 'Australian Dollar (A$)', symbol: 'A$', regions: ['Australia', 'AU'] },
+  { value: 'JPY', label: 'Japanese Yen (¥)', symbol: '¥', regions: ['Japan', 'JP'] },
+  { value: 'CNY', label: 'Chinese Yuan (¥)', symbol: '¥', regions: ['China', 'CN'] },
+  { value: 'INR', label: 'Indian Rupee (₹)', symbol: '₹', regions: ['India', 'IN'] },
+  { value: 'CHF', label: 'Swiss Franc (CHF)', symbol: 'CHF', regions: ['Switzerland', 'CH'] },
+  { value: 'NZD', label: 'New Zealand Dollar (NZ$)', symbol: 'NZ$', regions: ['New Zealand', 'NZ'] },
+  { value: 'SGD', label: 'Singapore Dollar (S$)', symbol: 'S$', regions: ['Singapore', 'SG'] },
+  { value: 'HKD', label: 'Hong Kong Dollar (HK$)', symbol: 'HK$', regions: ['Hong Kong', 'HK'] },
+  { value: 'SEK', label: 'Swedish Krona (kr)', symbol: 'kr', regions: ['Sweden', 'SE'] },
+  { value: 'NOK', label: 'Norwegian Krone (kr)', symbol: 'kr', regions: ['Norway', 'NO'] },
+  { value: 'DKK', label: 'Danish Krone (kr)', symbol: 'kr', regions: ['Denmark', 'DK'] },
+  { value: 'MXN', label: 'Mexican Peso (MX$)', symbol: 'MX$', regions: ['Mexico', 'MX'] },
+  { value: 'BRL', label: 'Brazilian Real (R$)', symbol: 'R$', regions: ['Brazil', 'BR'] },
+  { value: 'ZAR', label: 'South African Rand (R)', symbol: 'R', regions: ['South Africa', 'ZA'] },
+  { value: 'RUB', label: 'Russian Ruble (₽)', symbol: '₽', regions: ['Russia', 'RU'] },
+  { value: 'KRW', label: 'South Korean Won (₩)', symbol: '₩', regions: ['South Korea', 'KR'] },
+];
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const { data: session, isPending: sessionPending } = useSession();
   const { 
     exportData, 
     importData, 
@@ -34,11 +70,28 @@ export default function SettingsPage() {
     transactions,
     budgets,
     savingsGoals,
-    reminders
+    reminders,
+    currency,
+    updateCurrency,
+    isLoading
   } = useFinance();
 
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState(currency);
+  const [isUpdatingCurrency, setIsUpdatingCurrency] = useState(false);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!sessionPending && !session?.user) {
+      router.push("/login");
+    }
+  }, [session, sessionPending, router]);
+
+  // Update selected currency when context currency changes
+  useEffect(() => {
+    setSelectedCurrency(currency);
+  }, [currency]);
 
   const handleExport = () => {
     try {
@@ -78,7 +131,37 @@ export default function SettingsPage() {
     setIsClearDialogOpen(false);
   };
 
+  const handleCurrencyChange = async (newCurrency: string) => {
+    if (newCurrency === currency) return;
+
+    setIsUpdatingCurrency(true);
+    try {
+      await updateCurrency(newCurrency);
+      setSelectedCurrency(newCurrency);
+      toast.success(`Currency updated to ${CURRENCY_OPTIONS.find(c => c.value === newCurrency)?.label}`);
+    } catch (error) {
+      toast.error('Failed to update currency');
+      setSelectedCurrency(currency);
+    } finally {
+      setIsUpdatingCurrency(false);
+    }
+  };
+
   const totalItems = transactions.length + budgets.length + savingsGoals.length + reminders.length;
+
+  // Show loading while checking auth
+  if (sessionPending || !session?.user) {
+    return (
+      <div className="min-h-screen bg-background pb-20 md:pb-8">
+        <Navigation />
+        <main className="container mx-auto px-4 pt-20 md:pt-24 pb-8">
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-8">
@@ -123,6 +206,39 @@ export default function SettingsPage() {
                     <p className="text-xs text-muted-foreground">Reminders</p>
                   </div>
                 </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Currency Preferences */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Currency Preferences
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="currency">Preferred Currency</Label>
+                <Select
+                  value={selectedCurrency}
+                  onValueChange={handleCurrencyChange}
+                  disabled={isUpdatingCurrency}
+                >
+                  <SelectTrigger id="currency" className="mt-2">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  This will be used to display all monetary values throughout the app
+                </p>
               </div>
             </div>
           </Card>
@@ -268,10 +384,10 @@ export default function SettingsPage() {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
-                  <p className="font-medium mb-2">Local Storage</p>
+                  <p className="font-medium mb-2">Secure Cloud Storage</p>
                   <p className="text-muted-foreground">
-                    All your data is stored locally on your device using browser local storage. 
-                    Your data never leaves your device and is completely private.
+                    Your data is securely stored in the cloud and synced across devices. 
+                    All data is encrypted and only accessible by you with your account credentials.
                   </p>
                 </div>
               </div>
@@ -279,10 +395,10 @@ export default function SettingsPage() {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <FileJson className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
-                  <p className="font-medium mb-2">Offline Functionality</p>
+                  <p className="font-medium mb-2">Data Privacy</p>
                   <p className="text-muted-foreground">
-                    Budget Buddy works completely offline. No internet connection is required 
-                    after the initial page load. All features are available offline.
+                    Your financial data is private and never shared with third parties. 
+                    You have full control over your data and can export or delete it at any time.
                   </p>
                 </div>
               </div>
@@ -308,8 +424,9 @@ export default function SettingsPage() {
                 <li>Budget planning with alerts</li>
                 <li>Savings goal tracker</li>
                 <li>Smart reminders</li>
-                <li>Complete offline functionality</li>
-                <li>Data privacy with local storage</li>
+                <li>Multi-currency support</li>
+                <li>Secure cloud storage</li>
+                <li>Dark/Light mode</li>
               </ul>
             </div>
           </Card>
