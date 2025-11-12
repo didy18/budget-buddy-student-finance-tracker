@@ -161,13 +161,13 @@ export default function DashboardPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="p-4">
+          <Card className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Wallet className="h-6 w-6 text-muted-foreground" />
+                <Wallet className="h-8 w-8 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
-                  <p className="text-2xl font-bold">{formatCurrency(currentMonthStats.balance)}</p>
+                  <p className="text-3xl font-bold mt-1">{formatCurrency(currentMonthStats.balance)}</p>
                 </div>
               </div>
               <div className="text-right">
@@ -178,13 +178,13 @@ export default function DashboardPage() {
               </div>
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <TrendingUp className="h-6 w-6 text-muted-foreground" />
+                <TrendingUp className="h-8 w-8 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Income</p>
-                  <p className="text-2xl font-bold">{formatCurrency(currentMonthStats.income)}</p>
+                  <p className="text-3xl font-bold mt-1">{formatCurrency(currentMonthStats.income)}</p>
                 </div>
               </div>
               <div className="text-right">
@@ -195,13 +195,13 @@ export default function DashboardPage() {
               </div>
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <TrendingDown className="h-6 w-6 text-muted-foreground" />
+                <TrendingDown className="h-8 w-8 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Expenses</p>
-                  <p className="text-2xl font-bold">{formatCurrency(currentMonthStats.expenses)}</p>
+                  <p className="text-3xl font-bold mt-1">{formatCurrency(currentMonthStats.expenses)}</p>
                 </div>
               </div>
               <div className="text-right">
@@ -216,7 +216,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Budget Progress */}
-          <Card className="p-6">
+          <Card className="p-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Budget Overview</h2>
               <Link href="/budget">
@@ -263,7 +263,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Top Spending Categories */}
-          <Card className="p-6">
+          <Card className="p-8">
             <h2 className="text-lg font-semibold mb-4">Top Spending Categories</h2>
             
             {topCategories.length > 0 ? (
@@ -299,7 +299,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Transactions */}
-          <Card className="p-6">
+          <Card className="p-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Recent Transactions</h2>
               <Link href="/transactions">
@@ -343,7 +343,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Savings Goals & Reminders */}
-          <Card className="p-6">
+          <Card className="p-8">
             <h2 className="text-lg font-semibold mb-4">Quick Overview</h2>
             
             <div className="space-y-6">
