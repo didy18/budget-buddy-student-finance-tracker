@@ -161,56 +161,31 @@ export default function DashboardPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Wallet className="h-8 w-8 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
-                  <p className="text-3xl font-bold mt-1">{formatCurrency(currentMonthStats.balance)}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">This month</p>
-                <p className={`text-sm font-semibold ${currentMonthStats.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {currentMonthStats.balance >= 0 ? '+' : '-'}{formatCurrency(Math.abs(currentMonthStats.balance))}
-                </p>
-              </div>
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Wallet className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
             </div>
+            <p className="text-2xl font-bold">{formatCurrency(currentMonthStats.balance)}</p>
+            <p className="text-xs text-muted-foreground mt-1">This month</p>
           </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <TrendingUp className="h-8 w-8 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Income</p>
-                  <p className="text-3xl font-bold mt-1">{formatCurrency(currentMonthStats.income)}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">This month</p>
-                <p className="text-sm font-semibold text-green-600">
-                  +{formatCurrency(currentMonthStats.income)}
-                </p>
-              </div>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <TrendingUp className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm font-medium text-muted-foreground">Income</p>
             </div>
+            <p className="text-2xl font-bold text-green-600">{formatCurrency(currentMonthStats.income)}</p>
+            <p className="text-xs text-muted-foreground mt-1">This month</p>
           </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <TrendingDown className="h-8 w-8 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Expenses</p>
-                  <p className="text-3xl font-bold mt-1">{formatCurrency(currentMonthStats.expenses)}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">This month</p>
-                <p className="text-sm font-semibold text-red-600">
-                  -{formatCurrency(currentMonthStats.expenses)}
-                </p>
-              </div>
+          
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <TrendingDown className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm font-medium text-muted-foreground">Expenses</p>
             </div>
+            <p className="text-2xl font-bold text-red-600">{formatCurrency(currentMonthStats.expenses)}</p>
+            <p className="text-xs text-muted-foreground mt-1">This month</p>
           </Card>
         </div>
 
